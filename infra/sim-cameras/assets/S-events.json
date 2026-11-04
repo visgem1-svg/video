@@ -1,0 +1,16 @@
+{
+  "note": "Times are seconds from the start of the 60 s loop (a publisher restart restarts the loop at 0; cam-031..040 are published with -ss 0). Each event = object visible 3 s, entering from off-screen at start.",
+  "loop_s": 60,
+  "cameras": {
+    "cam-031": {"clip": "S_1", "scene": "street", "width": 960, "height": 540, "fps": 15, "events": [{"start": 5, "end": 8, "object": "person"}, {"start": 23, "end": 26, "object": "car"}, {"start": 48, "end": 51, "object": "person"}]},
+    "cam-032": {"clip": "S_2", "scene": "parking1", "width": 960, "height": 540, "fps": 15, "events": [{"start": 8, "end": 11, "object": "car"}, {"start": 26, "end": 29, "object": "person"}, {"start": 44, "end": 47, "object": "car"}]},
+    "cam-033": {"clip": "S_3", "scene": "jam", "width": 960, "height": 540, "fps": 15, "events": [{"start": 4, "end": 7, "object": "person"}, {"start": 22, "end": 25, "object": "car"}, {"start": 47, "end": 50, "object": "person"}]},
+    "cam-034": {"clip": "S_4", "scene": "javaplein", "width": 960, "height": 540, "fps": 15, "events": [{"start": 7, "end": 10, "object": "car"}, {"start": 25, "end": 28, "object": "person"}, {"start": 43, "end": 46, "object": "car"}]},
+    "cam-035": {"clip": "S_5", "scene": "quebec", "width": 960, "height": 540, "fps": 15, "events": [{"start": 3, "end": 6, "object": "person"}, {"start": 28, "end": 31, "object": "car"}, {"start": 46, "end": 49, "object": "person"}]},
+    "cam-036": {"clip": "S_6", "scene": "lobby", "width": 960, "height": 540, "fps": 15, "events": [{"start": 6, "end": 9, "object": "car"}, {"start": 24, "end": 27, "object": "person"}, {"start": 42, "end": 45, "object": "car"}]},
+    "cam-037": {"clip": "S_7", "scene": "parking2", "width": 640, "height": 360, "fps": 10, "events": [{"start": 2, "end": 5, "object": "person"}, {"start": 27, "end": 30, "object": "car"}, {"start": 45, "end": 48, "object": "person"}]},
+    "cam-038": {"clip": "S_8", "scene": "crossing", "width": 640, "height": 360, "fps": 10, "events": [{"start": 5, "end": 8, "object": "car"}, {"start": 23, "end": 26, "object": "person"}, {"start": 48, "end": 51, "object": "car"}]},
+    "cam-039": {"clip": "S_9", "scene": "station", "width": 1280, "height": 720, "fps": 25, "events": [{"start": 8, "end": 11, "object": "person"}, {"start": 26, "end": 29, "object": "car"}, {"start": 44, "end": 47, "object": "person"}]},
+    "cam-040": {"clip": "S_10", "scene": "zeedijk", "width": 1280, "height": 720, "fps": 25, "events": [{"start": 4, "end": 7, "object": "car"}, {"start": 22, "end": 25, "object": "person"}, {"start": 47, "end": 50, "object": "car"}]}
+  }
+}

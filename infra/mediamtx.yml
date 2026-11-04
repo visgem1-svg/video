@@ -1,0 +1,55 @@
+# MediaMTX 1.9.x - low-resource dev config. Only RTSP ingest (sim-cameras, frame-extractor reads)
+# and WebRTC/WHEP (browser, via api-gateway /media/** -> :8889) are enabled.
+logLevel: warn
+logDestinations: [stdout]
+readTimeout: 10s
+writeTimeout: 10s
+writeQueueSize: 128          # default 512; smaller = less RAM per reader
+
+# Dev auth: anyone on the compose network may publish/read; API + metrics open too
+# (default would restrict api/metrics to localhost, which would block Prometheus).
+authMethod: internal
+authInternalUsers:
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: publish
+      - action: read
+      - action: playback
+      - action: api
+      - action: metrics
+      - action: pprof
+
+api: yes
+apiAddress: :9997
+metrics: yes
+metricsAddress: :9998
+
+rtsp: yes
+rtspAddress: :8554
+rtmp: no
+hls: no
+srt: no
+
+# --- WebRTC for the browser (WHEP) -------------------------------------------------
+# Signalling: POST http://<host>:8889/<path>/whep (the browser goes through api-gateway :8000/media/).
+# Media: the SDP answer carries ICE candidates; inside Docker the container only knows 172.x
+# addresses which the host browser cannot reach. So we (1) stop advertising interface IPs and
+# (2) advertise 127.0.0.1/localhost, which is where docker publishes 8189 (udp + tcp fallback).
+# For access from another machine, add that machine's LAN IP to webrtcAdditionalHosts.
+webrtc: yes
+webrtcAddress: :8889
+webrtcAllowOrigin: '*'
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+webrtcIPsFromInterfaces: no
+webrtcAdditionalHosts: [127.0.0.1, localhost]
+
+# Publisher paths: ONE regex path (cam-001..cam-999); no per-camera entries. Paths added at runtime by the
+# registry (POST /v3/config/paths/add/{id}, any name) are separate named paths and take precedence over
+# regex matches. No `all_others`, so unknown names are still rejected. The `api` action in authInternalUsers
+# above is what lets the registry call the API (dev only: any compose-network host may).
+paths:
+  "~^cam-[0-9]{3}$":
+    source: publisher

@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Executor/Executor.csproj" />
+  <Project Path="Executor.Tests/Executor.Tests.csproj" />
+  <Project Path="RealtimeGateway/RealtimeGateway.csproj" />
+  <Project Path="RealtimeGateway.Tests/RealtimeGateway.Tests.csproj" />
+  <Project Path="ApiGateway/ApiGateway.csproj" />
+  <Project Path="ApiGateway.Tests/ApiGateway.Tests.csproj" />
+</Solution>

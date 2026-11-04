@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="Registry/Registry.csproj" />
+  <Project Path="Registry.Tests/Registry.Tests.csproj" />
+  <Project Path="StreamHealth/StreamHealth.csproj" />
+  <Project Path="StreamHealth.Tests/StreamHealth.Tests.csproj" />
+  <Project Path="Results/Results.csproj" />
+  <Project Path="Results.Tests/Results.Tests.csproj" />
+</Solution>

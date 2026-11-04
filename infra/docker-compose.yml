@@ -1,0 +1,642 @@
+# Vision Pipeline - full local test-prod stack (see CONTRACTS.md sections 3, 4, 5, 9).
+#   docker compose up -d --build            # everything
+#   see README.md for infra-only start and troubleshooting; ENV.md lists every env var.
+# Memory: every container has mem_limit from CONTRACTS section 9 (sum of limits ~6.6 GB, +2.5 GB Ollama on host).
+name: vision-pipeline
+
+# ---------------------------------------------------------------- shared fragments
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "3" }
+
+x-minio-env: &minio-env
+  MINIO_ENDPOINT: minio:9000
+  MINIO_ACCESS_KEY: minio
+  MINIO_SECRET_KEY: minio12345
+  MINIO_USE_SSL: "false"
+  MINIO_FRAMES_BUCKET: frames
+  MINIO_SNAPSHOTS_BUCKET: snapshots
+
+x-dotnet-env: &dotnet-env
+  DOTNET_gcServer: "0"
+  DOTNET_GCHeapHardLimit: "0x6000000"   # hex = 96 MB managed heap cap (container limit 128 MB)
+  DOTNET_TieredPGO: "0"
+  DOTNET_EnableDiagnostics: "0"
+  ASPNETCORE_ENVIRONMENT: Production
+  LOG_FORMAT: json
+  # hot-path noise: one Info line per HTTP call/Polly attempt costs CPU at 1,200 frames/s
+  Logging__LogLevel__System.Net.Http.HttpClient: Warning
+  Logging__LogLevel__Polly: Warning
+  Logging__LogLevel__Microsoft.AspNetCore: Warning
+
+x-dotnet: &dotnet
+  restart: unless-stopped
+  mem_limit: 128m
+  networks: [vp]
+  logging: *logging
+  environment: &dotnet-base-env
+    <<: *dotnet-env
+    KAFKA_BOOTSTRAP: redpanda:9092
+
+# Python engines (detector/lpr/ocr/face): models read-only, warm caches in a named volume.
+x-engine: &engine
+  restart: unless-stopped
+  # CPU priority under contention (default 1024): on a saturated host ffmpeg decoding starved inference
+  # (detect p50 0.23 s -> 1.9 s). Only matters when the CPU is full; idle CPU is still shared freely.
+  cpu_shares: 4096
+  networks: [vp]
+  logging: *logging
+  volumes:
+    - ../models:/models:ro
+    - engines-cache:/cache
+  environment: &engine-env
+    MODELS_DIR: /models
+    XDG_CACHE_HOME: /cache
+    LOG_FORMAT: json
+    OMP_NUM_THREADS: "2"
+
+# Health probe for Python images (no curl/wget needed, any python base works).
+# .NET images are probed with busybox wget -> .NET images must be alpine-based (see ENV.md).
+
+networks:
+  vp:
+    name: vp-net
+    driver: bridge
+
+volumes:
+  redpanda-data:
+  minio-data:
+  pgdata:
+  prometheus-data:
+  grafana-data:
+  engines-cache:
+  face-gallery:
+  fx-sd:                      # Prometheus file_sd written by worker-controller
+
+services:
+  # ================================================================ INFRA
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --rpc-addr=0.0.0.0:33145
+      - --advertise-rpc-addr=redpanda:33145
+      - --mode=dev-container      # dev defaults; auto_create_topics is disabled by redpanda-init (rpk cluster config)
+    ports:
+      - "19092:19092"           # Kafka API for host tools
+      - "127.0.0.1:9644:9644"   # admin API / metrics
+    volumes: [ "redpanda-data:/var/lib/redpanda/data" ]
+    # Contract: 1 GB. Seastar --memory 1G leaves no head-room for non-heap use; see README risk note.
+    mem_limit: 1280m
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    networks: [vp]
+    logging: *logging
+
+  redpanda-init:               # one-shot: creates the 9 topics of CONTRACTS section 5
+    image: redpandadata/redpanda:v24.2.7
+    entrypoint: ["/bin/bash", "/init/init-topics.sh"]
+    environment: { RPK_BROKERS: "redpanda:9092" }
+    volumes: [ "./redpanda/init-topics.sh:/init/init-topics.sh:ro" ]
+    depends_on:
+      redpanda: { condition: service_healthy }
+    restart: "no"
+    mem_limit: 128m
+    networks: [vp]
+    logging: *logging
+
+  redpanda-console:
+    image: redpandadata/console:v2.7.2
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      GOMEMLIMIT: 150MiB
+    ports: [ "8080:8080" ]
+    depends_on:
+      redpanda: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/admin/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    restart: unless-stopped
+    mem_limit: 192m
+    networks: [vp]
+    logging: *logging
+
+  # S3 object store. MinIO images were removed from Docker Hub, so this is SeaweedFS
+  # (Apache-2.0, S3-compatible). The compose name `minio` and the MINIO_* env vars are kept
+  # so no service changes: they mean "the S3 endpoint". S3 on 9000, master 9333, filer 8888.
+  minio:
+    image: chrislusf/seaweedfs:3.80
+    command: >
+      server -dir=/data -ip=minio -ip.bind=0.0.0.0
+      -master.volumeSizeLimitMB=128 -volume.max=0
+      -filer -s3 -s3.port=9000 -s3.config=/etc/seaweedfs/s3.json
+      -metricsPort=9324
+    environment:
+      GOMEMLIMIT: 200MiB
+    ports:
+      - "9000:9000"
+      - "8888:8888"       # filer UI (browse buckets) — replaces the MinIO console
+    volumes:
+      - "minio-data:/data"
+      - "./objectstore/s3.json:/etc/seaweedfs/s3.json:ro"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9000/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+    mem_limit: 256m
+    networks: [vp]
+    logging: *logging
+
+  minio-init:                  # one-shot: buckets frames (1-day TTL) + snapshots
+    image: chrislusf/seaweedfs:3.80
+    entrypoint: ["/bin/sh", "/init/init-buckets.sh"]
+    environment:
+      FRAMES_TTL: 5m               # scale test (script default 10m)
+      SNAPSHOT_TTL: 1d
+    volumes: [ "./objectstore/init-buckets.sh:/init/init-buckets.sh:ro" ]
+    depends_on:
+      minio: { condition: service_healthy }
+    restart: "no"
+    mem_limit: 64m
+    networks: [vp]
+    logging: *logging
+
+  postgres:
+    image: postgres:16.4-alpine
+    command: ["postgres", "-c", "shared_buffers=48MB", "-c", "max_connections=100",
+              "-c", "work_mem=2MB", "-c", "effective_cache_size=128MB", "-c", "fsync=on"]
+    environment:
+      POSTGRES_USER: vp
+      POSTGRES_PASSWORD: vp
+      POSTGRES_DB: postgres
+    ports: [ "5432:5432" ]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro   # creates registry, planner, results (first start only)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vp -d registry"]   # registry exists only after init SQL ran
+      interval: 5s
+      timeout: 3s
+      retries: 15
+      start_period: 10s
+    restart: unless-stopped
+    mem_limit: 256m
+    networks: [vp]
+    logging: *logging
+
+  mediamtx:
+    image: bluenviron/mediamtx:1.9.1-ffmpeg     # -ffmpeg variant = alpine base (has wget for the healthcheck)
+    volumes: [ "./mediamtx.yml:/mediamtx.yml:ro" ]
+    ports:
+      - "8554:8554"                  # RTSP
+      - "8889:8889"                  # WebRTC signalling (WHEP)
+      - "8189:8189/udp"              # WebRTC media (ICE-UDP)
+      - "8189:8189/tcp"              # WebRTC media (ICE-TCP fallback)
+      - "127.0.0.1:9997:9997"        # control API
+      - "127.0.0.1:9998:9998"        # metrics
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9997/v3/config/global/get >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+    restart: unless-stopped
+    mem_limit: 128m
+    networks: [vp]
+    logging: *logging
+
+  sim-cameras:
+    build: { context: ./sim-cameras }
+    image: vp/sim-cameras:1
+    depends_on:
+      mediamtx: { condition: service_healthy }
+    init: true
+    healthcheck:
+      test: ["CMD-SHELL", "[ -f /tmp/healthy ] && [ $$(( $$(date +%s) - $$(date -r /tmp/healthy +%s) )) -lt 30 ] || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 40s
+    restart: unless-stopped
+    mem_limit: 768m              # 100 publishers (-c copy), see README
+    environment:
+      # streams published (cam-001..cam-NNN); only registered cameras are decoded, the rest cost ~1.7 cores at 100.
+      # Scale test: SIM_CAMERAS=100 docker compose up -d sim-cameras
+      CAMERAS: ${SIM_CAMERAS:-40}
+    networks: [vp]
+    logging: *logging
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=2d
+      - --storage.tsdb.retention.size=1GB
+      - --web.enable-lifecycle
+    ports: [ "9090:9090" ]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - fx-sd:/etc/prometheus/sd:ro
+      - prometheus-data:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/healthy >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 256m
+    networks: [vp]
+    logging: *logging
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/vision-pipeline.json
+      GOMEMLIMIT: 150MiB
+    ports: [ "3000:3000" ]
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+    mem_limit: 192m
+    networks: [vp]
+    logging: *logging
+
+  # ================================================================ .NET SERVICES
+  registry:
+    <<: *dotnet
+    build: { context: ../services/dotnet, dockerfile: Registry/Dockerfile }
+    image: vp/registry:dev
+    environment:
+      <<: *dotnet-base-env
+      ASPNETCORE_URLS: http://+:5001
+      POSTGRES_CONNECTION: "Host=postgres;Port=5432;Database=registry;Username=vp;Password=vp;Maximum Pool Size=10"
+      LEASE_S: "15"
+      MEDIAMTX_API_URL: http://mediamtx:9997
+      SEED_CAMERAS: "20"            # creates cam-001..cam-020 on first start (matches sim-cameras)
+      SEED_RTSP_BASE: rtsp://mediamtx:8554
+    ports: [ "5001:5001" ]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5001/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 8
+      start_period: 15s
+
+  stream-health:
+    <<: *dotnet
+    build: { context: ../services/dotnet, dockerfile: StreamHealth/Dockerfile }
+    image: vp/stream-health:dev
+    environment:
+      <<: *dotnet-base-env
+      ASPNETCORE_URLS: http://+:5002
+      REGISTRY_URL: http://registry:5001
+    ports: [ "5002:5002" ]
+    depends_on:
+      redpanda-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5002/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 8
+      start_period: 15s
+
+  results:
+    <<: *dotnet
+    build: { context: ../services/dotnet, dockerfile: Results/Dockerfile }
+    image: vp/results:dev
+    environment:
+      <<: [*dotnet-base-env, *minio-env]
+      ASPNETCORE_URLS: http://+:5004
+      POSTGRES_CONNECTION: "Host=postgres;Port=5432;Database=results;Username=vp;Password=vp;Maximum Pool Size=10"
+      RECOGNITION_RETENTION_DAYS: "1"
+    ports: [ "5004:5004" ]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda-init: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5004/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 8
+      start_period: 15s
+
+  executor:
+    <<: *dotnet
+    build: { context: ../services/dotnet, dockerfile: Executor/Dockerfile }
+    image: vp/executor:dev
+    environment:
+      <<: [*dotnet-base-env, *minio-env]
+      ASPNETCORE_URLS: http://+:5003
+      EXECUTOR_ID: ex-1
+      DETECTOR_URL: http://detector:8101
+      LPR_URL: http://lpr:8102
+      OCR_URL: http://ocr:8103
+      FACE_URL: http://face:8104
+      # live-system rule: no queueing at the engine (frames wait here, where stale ones are skipped for free);
+      # concurrency = detector MAX_CONCURRENCY + MAX_QUEUE; timeout long enough not to abandon work in progress
+      TOOL_CONCURRENCY_DETECT_OBJECTS: "5"
+      # in-flight ≈ first-step capacity: frames must wait in the per-camera mailbox (where a newer frame
+      # supersedes them), not inside the pipeline. 32 measured p50 3.9 s detection age; see BACKLOG #18.
+      MAX_INFLIGHT_FRAMES: "6"
+      TOOL_TIMEOUT_MS_DETECT_OBJECTS: "8000"
+    ports: [ "5003:5003" ]
+    depends_on:
+      redpanda-init: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+      detector: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5003/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 8
+      start_period: 15s
+
+  realtime-gateway:
+    <<: *dotnet
+    build: { context: ../services/dotnet, dockerfile: RealtimeGateway/Dockerfile }
+    image: vp/realtime-gateway:dev
+    environment:
+      <<: *dotnet-base-env
+      ASPNETCORE_URLS: http://+:5005
+    ports: [ "5005:5005" ]
+    depends_on:
+      redpanda-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5005/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 8
+      start_period: 15s
+
+  frame-catalog:
+    <<: *dotnet
+    build: { context: ../services/dotnet, dockerfile: FrameCatalog/Dockerfile }
+    image: vp/frame-catalog:dev
+    environment:
+      <<: [*dotnet-base-env, *minio-env]
+      ASPNETCORE_URLS: http://+:5006
+      FRAMES_PER_CAMERA: "600"
+    ports: [ "5006:5006" ]
+    depends_on:
+      redpanda-init: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5006/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 8
+      start_period: 15s
+
+  worker-controller:             # autoscaler (DEV ONLY: mounts the Docker socket, root-equivalent)
+    build: { context: ../services/worker-controller }
+    image: vp/worker-controller:dev
+    environment:
+      PORT: "5007"
+      LOG_FORMAT: json
+      REGISTRY_URL: http://registry:5001
+      DOCKER_NETWORK: vp-net
+      TEMPLATE_CONTAINER: vision-pipeline-frame-extractor-1-1   # real container name of frame-extractor-1
+      FILE_SD_PATH: /sd/extractors.json
+      WORKER_CAPACITY: "12"
+      MIN_WORKERS: "2"
+      MAX_WORKERS: "10"          # 100-camera test
+      MODE: auto
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - fx-sd:/sd
+    depends_on:
+      registry: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:5007/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+    restart: unless-stopped
+    mem_limit: 128m
+    networks: [vp]
+    logging: *logging
+
+  api-gateway:
+    <<: *dotnet
+    build: { context: ../services/dotnet, dockerfile: ApiGateway/Dockerfile }
+    image: vp/api-gateway:dev
+    environment:
+      <<: *dotnet-base-env
+      ASPNETCORE_URLS: http://+:8000
+      REGISTRY_URL: http://registry:5001
+      STREAM_HEALTH_URL: http://stream-health:5002
+      RESULTS_URL: http://results:5004
+      REALTIME_GATEWAY_URL: http://realtime-gateway:5005
+      PLANNER_URL: http://planner:8010
+      MEDIAMTX_WHEP_URL: http://mediamtx:8889
+      FACE_URL: http://face:8104
+      FRAME_CATALOG_URL: http://frame-catalog:5006
+      WORKER_CONTROLLER_URL: http://worker-controller:5007
+      CORS_ORIGINS: http://localhost:5173
+    ports: [ "8000:8000" ]
+    depends_on:
+      registry: { condition: service_healthy }
+      stream-health: { condition: service_healthy }
+      results: { condition: service_healthy }
+      realtime-gateway: { condition: service_healthy }
+      planner: { condition: service_healthy }
+      mediamtx: { condition: service_healthy }
+      frame-catalog: { condition: service_healthy }
+      worker-controller: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 8
+      start_period: 15s
+
+  # ================================================================ AI ENGINES (Python)
+  detector:
+    <<: *engine
+    build: { context: ../services/engines, dockerfile: detector/Dockerfile }
+    image: vp/detector:dev
+    # admits MAX_CONCURRENCY + MAX_QUEUE = 5 = executor TOOL_CONCURRENCY_DETECT_OBJECTS (no 429 storm).
+    # Local CPU test uses YOLOX-Tiny (4x faster than YOLOX-S, measured); production = YOLOX-S on GPU (BACKLOG #5).
+    environment: { <<: *engine-env, PORT: "8101", MAX_CONCURRENCY: "4", MAX_QUEUE: "1", ORT_THREADS: "2", DETECTOR_MODEL: yolox_tiny.onnx }
+    ports: [ "8101:8101" ]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8101/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  lpr:
+    <<: *engine
+    build: { context: ../services/engines, dockerfile: lpr/Dockerfile }
+    image: vp/lpr:dev
+    environment: { <<: *engine-env, PORT: "8102" }
+    ports: [ "8102:8102" ]
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8102/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  ocr:
+    <<: *engine
+    build: { context: ../services/engines, dockerfile: ocr/Dockerfile }
+    image: vp/ocr:dev
+    environment: { <<: *engine-env, PORT: "8103" }
+    ports: [ "8103:8103" ]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8103/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  face:
+    <<: *engine
+    build: { context: ../services/engines, dockerfile: face/Dockerfile }
+    image: vp/face:dev
+    environment: { <<: *engine-env, PORT: "8104", FACE_DATA_DIR: /data }
+    ports: [ "8104:8104" ]
+    volumes:
+      - ../models:/models:ro
+      - engines-cache:/cache
+      - face-gallery:/data
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8104/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ================================================================ PLANNER
+  planner:
+    build: { context: ../services/planner }
+    image: vp/planner:dev
+    environment:
+      PORT: "8010"
+      LOG_FORMAT: json
+      DATABASE_URL: postgresql://vp:vp@postgres:5432/planner
+      KAFKA_BOOTSTRAP: redpanda:9092
+      REGISTRY_URL: http://registry:5001
+      OLLAMA_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: qwen2.5:3b
+      # measured: qwen2.5:3b on this laptop's CPU while the pipeline runs = ~2.3 tok/s -> a draft takes ~2-2.5 min
+      LLM_TIMEOUT_S: "300"
+    extra_hosts: [ "host.docker.internal:host-gateway" ]
+    ports: [ "8010:8010" ]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redpanda-init: { condition: service_completed_successfully }
+      registry: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:8010/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+    mem_limit: 192m
+    networks: [vp]
+    logging: *logging
+
+  # ================================================================ FRAME EXTRACTORS (2 replicas, ~10 cameras each)
+  frame-extractor-1: &frame-extractor
+    build: { context: ../services/frame-extractor }
+    image: vp/frame-extractor:dev
+    environment: &fx-env              # v1.7: no S3 config, frames go to Kafka
+      PORT: "9101"
+      LOG_FORMAT: json
+      REGISTRY_URL: http://registry:5001
+      KAFKA_BOOTSTRAP: redpanda:9092
+      WORKER_ID: fx-1
+      FFMPEG_THREADS: "1"            # scale test
+      FFMPEG_SKIP_LOOP_FILTER: "1"   # 8-15 % less H.264 decode CPU, -0.3 % detections at conf>=0.5 (qa/perf/decode-bench/RESULTS.md)
+      JPEG_MAX_WIDTH: "640"          # scale test
+      WORKER_CAPACITY: "12"          # measured ~22 MB/ffmpeg -> 12 cams ~330 MB < 512m
+    ports: [ "9101:9101" ]
+    depends_on: &fx-deps
+      registry: { condition: service_healthy }
+      redpanda-init: { condition: service_completed_successfully }
+      mediamtx: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://127.0.0.1:9101/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 15s
+    restart: unless-stopped
+    mem_limit: 512m   # measured: ~28 MB anon/ffmpeg @540p x 10 + ~60 MB parent + probe spikes + page cache (384m was OOM-killing ffmpeg)
+    networks: [vp]
+    logging: *logging
+
+  frame-extractor-2:
+    <<: *frame-extractor
+    environment:
+      <<: *fx-env
+      WORKER_ID: fx-2
+    ports: [ "9102:9101" ]
+
+  # ================================================================ UI
+  ui:
+    build: { context: ../ui }
+    image: vp/ui:dev
+    ports: [ "5173:80" ]
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    mem_limit: 64m
+    networks: [vp]
+    logging: *logging

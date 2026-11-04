@@ -1,0 +1,41 @@
+# Scrapes every service's GET /metrics (CONTRACTS 1.3) plus infra exporters.
+global:
+  scrape_interval: 15s
+  scrape_timeout: 10s
+  evaluation_interval: 30s
+
+scrape_configs:
+  # --- application services (job = compose service name) --------------------------
+  - { job_name: registry,         static_configs: [ { targets: ['registry:5001'] } ] }
+  - { job_name: stream-health,    static_configs: [ { targets: ['stream-health:5002'] } ] }
+  - { job_name: executor,         static_configs: [ { targets: ['executor:5003'] } ] }
+  - { job_name: results,          static_configs: [ { targets: ['results:5004'] } ] }
+  - { job_name: realtime-gateway, static_configs: [ { targets: ['realtime-gateway:5005'] } ] }
+  - { job_name: api-gateway,      static_configs: [ { targets: ['api-gateway:8000'] } ] }
+  - { job_name: frame-catalog,    static_configs: [ { targets: ['frame-catalog:5006'] } ] }
+  - { job_name: worker-controller, static_configs: [ { targets: ['worker-controller:5007'] } ] }
+  - { job_name: planner,          static_configs: [ { targets: ['planner:8010'] } ] }
+  - { job_name: detector,         static_configs: [ { targets: ['detector:8101'] } ] }
+  - { job_name: lpr,              static_configs: [ { targets: ['lpr:8102'] } ] }
+  - { job_name: ocr,              static_configs: [ { targets: ['ocr:8103'] } ] }
+  - { job_name: face,             static_configs: [ { targets: ['face:8104'] } ] }
+  - job_name: frame-extractor
+    static_configs:
+      - targets: ['frame-extractor-1:9101']
+        labels: { worker: fx-1 }
+      - targets: ['frame-extractor-2:9101']
+        labels: { worker: fx-2 }
+
+  - job_name: extractors-auto            # fx-auto-N written by worker-controller
+    file_sd_configs: [ { files: ['/etc/prometheus/sd/extractors.json'], refresh_interval: 15s } ]
+
+  # --- infrastructure --------------------------------------------------------------
+  - { job_name: mediamtx, static_configs: [ { targets: ['mediamtx:9998'] } ] }
+  - job_name: redpanda                       # includes redpanda_kafka_consumer_group_lag_* (see init-topics.sh)
+    metrics_path: /public_metrics
+    static_configs: [ { targets: ['redpanda:9644'] } ]
+  - job_name: objectstore                    # SeaweedFS (compose name `minio`)
+    metrics_path: /metrics
+    static_configs: [ { targets: ['minio:9324'] } ]
+  - { job_name: prometheus, static_configs: [ { targets: ['localhost:9090'] } ] }
+  - { job_name: grafana,    static_configs: [ { targets: ['grafana:3000'] } ] }

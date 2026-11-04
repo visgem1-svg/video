@@ -1,0 +1,350 @@
+{
+ "step": 21,
+ "tag": "dry-",
+ "started": "2026-10-22 08:53:45",
+ "complete": true,
+ "registration_total_s": 0.0,
+ "cameras_enabled": 21,
+ "measure_start": 1792648430.8115277,
+ "measure_end": 1792648469.0818257,
+ "prometheus": {
+  "ingest_fps_all": {
+   "n": 21,
+   "p5": 0.8,
+   "p50": 0.93,
+   "min": 0.0
+  },
+  "ingest_fps_online_now": {
+   "n": 19,
+   "p5": 0.86,
+   "p50": 0.93,
+   "min": 0.8
+  },
+  "cameras_below_2_4fps_online": [
+   "cam-001",
+   "cam-002",
+   "cam-003",
+   "cam-004",
+   "cam-005",
+   "cam-006",
+   "cam-007",
+   "cam-008",
+   "cam-010",
+   "cam-011",
+   "cam-012",
+   "cam-013",
+   "cam-014",
+   "cam-015",
+   "cam-016",
+   "cam-017",
+   "cam-018",
+   "cam-019",
+   "lobby-cam"
+  ],
+  "frames_raw_produce_rate": 24.39,
+  "dropped_frames": 889.0,
+  "bad_frames": 0.0,
+  "publish_errors": 0,
+  "ffmpeg_restarts": 3.0,
+  "ffmpeg_restarts_by_camera_top": {
+   "cam-019": 3
+  },
+  "extractor_camera_states": {
+   "online": 19,
+   "reconnecting": 1,
+   "error": 1
+  },
+  "extractor_cameras_running": {
+   "fx-1": 12,
+   "fx-2": 9,
+   "null": 0
+  },
+  "worker_targets_up": 2,
+  "kafka_frames_raw": {
+   "produce_msgs_per_s": 24.34,
+   "produce_MB_per_s": 0.01,
+   "consume_MB_per_s": 0.01,
+   "avg_jpeg_KB": 0.42
+  },
+  "redpanda_disk_free_GiB": 976.9,
+  "detection_age_first_s": {
+   "0.5": 3.69,
+   "0.95": 8.75
+  },
+  "detection_age_final_s": {
+   "0.5": 4.25,
+   "0.95": 9.65
+  },
+  "frame_catalog": {
+   "records": 12600.0,
+   "pending": 0.0,
+   "frames_per_s": 21.35,
+   "image_requests": {
+    "ok": 0,
+    "expired": 0,
+    "unknown": 0,
+    "error": 0
+   }
+  },
+  "controller_desired_workers": 3.0,
+  "executor_rates_per_s": {
+   "ok": 1.13
+  },
+  "executor_skipped_per_s": {
+   "stale": 11.07,
+   "superseded": 13.97
+  },
+  "executor_step_mean_ms": 2055.7,
+  "executor_inflight": 6.0,
+  "realtime_consumer_lag_ms": {
+   "detections": 265.0,
+   "recognitions": 17.0,
+   "pipeline.metrics": 86.0
+  },
+  "realtime_dropped_per_s": {
+   "no_subscribers": 1.867,
+   "throttled": 0.0,
+   "parse_error": 0.0
+  },
+  "realtime_connections": 1.0,
+  "registry_cameras": {
+   "all": 21.0
+  },
+  "controller_decisions": {},
+  "controller_workers": {
+   "live": 3.0,
+   "draining": 0.0,
+   "dead": 0.0
+  },
+  "stream_health_cameras": {
+   "online": 14.0,
+   "degraded": 6.0,
+   "offline": 1.0,
+   "unassigned": 0.0
+  }
+ },
+ "docker": {
+  "vp-fx-auto-1": {
+   "cpu_avg": 0.11,
+   "cpu_max": 0.11,
+   "mem_avg_mib": 38.9,
+   "mem_max_mib": 38.9,
+   "limit_mib": 512.0
+  },
+  "vision-pipeline-sim-cameras-1": {
+   "cpu_avg": 131.32,
+   "cpu_max": 131.32,
+   "mem_avg_mib": 509.6,
+   "mem_max_mib": 509.6,
+   "limit_mib": 768.0
+  },
+  "vision-pipeline-api-gateway-1": {
+   "cpu_avg": 8.29,
+   "cpu_max": 8.29,
+   "mem_avg_mib": 44.6,
+   "mem_max_mib": 44.6,
+   "limit_mib": 128.0
+  },
+  "vision-pipeline-frame-extractor-2-1": {
+   "cpu_avg": 122.57,
+   "cpu_max": 122.57,
+   "mem_avg_mib": 337.0,
+   "mem_max_mib": 337.0,
+   "limit_mib": 512.0
+  },
+  "vision-pipeline-frame-extractor-1-1": {
+   "cpu_avg": 206.26,
+   "cpu_max": 206.26,
+   "mem_avg_mib": 429.4,
+   "mem_max_mib": 429.4,
+   "limit_mib": 512.0
+  },
+  "vision-pipeline-frame-catalog-1": {
+   "cpu_avg": 6.44,
+   "cpu_max": 6.44,
+   "mem_avg_mib": 40.5,
+   "mem_max_mib": 40.5,
+   "limit_mib": 128.0
+  },
+  "vision-pipeline-results-1": {
+   "cpu_avg": 6.08,
+   "cpu_max": 6.08,
+   "mem_avg_mib": 59.7,
+   "mem_max_mib": 59.7,
+   "limit_mib": 128.0
+  },
+  "vision-pipeline-prometheus-1": {
+   "cpu_avg": 3.73,
+   "cpu_max": 3.73,
+   "mem_avg_mib": 98.8,
+   "mem_max_mib": 98.8,
+   "limit_mib": 256.0
+  },
+  "vision-pipeline-worker-controller-1": {
+   "cpu_avg": 1.22,
+   "cpu_max": 1.22,
+   "mem_avg_mib": 49.3,
+   "mem_max_mib": 49.3,
+   "limit_mib": 128.0
+  },
+  "vision-pipeline-lpr-1": {
+   "cpu_avg": 143.85,
+   "cpu_max": 143.85,
+   "mem_avg_mib": 192.6,
+   "mem_max_mib": 192.6,
+   "limit_mib": 384.0
+  },
+  "vision-pipeline-executor-1": {
+   "cpu_avg": 15.51,
+   "cpu_max": 15.51,
+   "mem_avg_mib": 55.5,
+   "mem_max_mib": 55.5,
+   "limit_mib": 128.0
+  },
+  "vision-pipeline-realtime-gateway-1": {
+   "cpu_avg": 6.03,
+   "cpu_max": 6.03,
+   "mem_avg_mib": 75.6,
+   "mem_max_mib": 75.6,
+   "limit_mib": 128.0
+  },
+  "vision-pipeline-planner-1": {
+   "cpu_avg": 1.16,
+   "cpu_max": 1.16,
+   "mem_avg_mib": 54.5,
+   "mem_max_mib": 54.5,
+   "limit_mib": 192.0
+  },
+  "vision-pipeline-stream-health-1": {
+   "cpu_avg": 1.92,
+   "cpu_max": 1.92,
+   "mem_avg_mib": 57.6,
+   "mem_max_mib": 57.6,
+   "limit_mib": 128.0
+  },
+  "vision-pipeline-registry-1": {
+   "cpu_avg": 3.14,
+   "cpu_max": 3.14,
+   "mem_avg_mib": 50.3,
+   "mem_max_mib": 50.3,
+   "limit_mib": 128.0
+  },
+  "vision-pipeline-face-1": {
+   "cpu_avg": 52.4,
+   "cpu_max": 52.4,
+   "mem_avg_mib": 299.6,
+   "mem_max_mib": 299.6,
+   "limit_mib": 384.0
+  },
+  "vision-pipeline-ui-1": {
+   "cpu_avg": 0.0,
+   "cpu_max": 0.0,
+   "mem_avg_mib": 17.5,
+   "mem_max_mib": 17.5,
+   "limit_mib": 64.0
+  },
+  "vision-pipeline-minio-1": {
+   "cpu_avg": 101.41,
+   "cpu_max": 101.41,
+   "mem_avg_mib": 152.5,
+   "mem_max_mib": 152.5,
+   "limit_mib": 256.0
+  },
+  "vision-pipeline-detector-1": {
+   "cpu_avg": 153.18,
+   "cpu_max": 153.18,
+   "mem_avg_mib": 207.0,
+   "mem_max_mib": 207.0,
+   "limit_mib": 512.0
+  },
+  "vision-pipeline-grafana-1": {
+   "cpu_avg": 0.27,
+   "cpu_max": 0.27,
+   "mem_avg_mib": 132.1,
+   "mem_max_mib": 132.1,
+   "limit_mib": 192.0
+  },
+  "vision-pipeline-ocr-1": {
+   "cpu_avg": 0.51,
+   "cpu_max": 0.51,
+   "mem_avg_mib": 141.9,
+   "mem_max_mib": 141.9,
+   "limit_mib": 512.0
+  },
+  "vision-pipeline-redpanda-console-1": {
+   "cpu_avg": 0.0,
+   "cpu_max": 0.0,
+   "mem_avg_mib": 84.6,
+   "mem_max_mib": 84.6,
+   "limit_mib": 192.0
+  },
+  "vision-pipeline-mediamtx-1": {
+   "cpu_avg": 64.15,
+   "cpu_max": 64.15,
+   "mem_avg_mib": 46.4,
+   "mem_max_mib": 46.4,
+   "limit_mib": 128.0
+  },
+  "vision-pipeline-redpanda-1": {
+   "cpu_avg": 57.18,
+   "cpu_max": 57.18,
+   "mem_avg_mib": 491.0,
+   "mem_max_mib": 491.0,
+   "limit_mib": 1280.0
+  },
+  "vision-pipeline-postgres-1": {
+   "cpu_avg": 2.89,
+   "cpu_max": 2.89,
+   "mem_avg_mib": 51.6,
+   "mem_max_mib": 51.6,
+   "limit_mib": 256.0
+  }
+ },
+ "docker_total_cpu_avg": 1089.62,
+ "docker_total_mem_avg_mib": 3718.0,
+ "docker_info": {
+  "vm_mem_total_mib": 7942,
+  "vm_cpus": 16,
+  "containers_running": 25
+ },
+ "host": {
+  "free_ram_mib_min": 2380,
+  "free_ram_mib_last": 2380,
+  "total_ram_mib": 15677,
+  "c_free_mib_min": 4245
+ },
+ "kafka_executor_lag": {
+  "first": 83,
+  "last": 83,
+  "max": 83,
+  "growing": false
+ },
+ "kafka_catalog_lag": {
+  "first": 58,
+  "last": 58,
+  "max": 58
+ },
+ "redpanda_data_mib": {
+  "first": 4810,
+  "last": 4810
+ },
+ "autoscaler_last": {
+  "unavailable": 404
+ },
+ "health_last": {
+  "total": 21,
+  "online": 16,
+  "degraded": 5,
+  "offline": 0,
+  "unassigned": 0
+ },
+ "workers_last": [],
+ "workers_utilization": [],
+ "oom_killed": [],
+ "container_restart_counts": {},
+ "ui_live_wall_4x4": "MANUAL: open http://localhost:5173 Live wall 4x4",
+ "detection_age": "see prometheus.detection_age_first_s / detection_age_final_s (p50, p95)",
+ "failure_criteria_hit": [
+  "19 online cameras < 2.4 fps"
+ ]
+}

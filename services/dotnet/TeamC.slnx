@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="FrameCatalog/FrameCatalog.csproj" />
+  <Project Path="FrameCatalog.Tests/FrameCatalog.Tests.csproj" />
+</Solution>

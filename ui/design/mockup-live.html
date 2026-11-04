@@ -1,0 +1,62 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vision Console mockup</title>
+<style>
+:root{--bg:#0B0D12;--card:#11141B;--raised:#171B24;--bd:#232836;--bd2:#2F3546;--fg:#E6E9EF;--mu:#9AA3B2;--fa:#7A8396;--pr:#6C9BFF;--ac:#1A2236;--acf:#BFD2FF;--ok:#34D399;--warn:#FBBF24;--err:#F87171;--sb:#0E1117}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:13px/20px Inter,system-ui,"Segoe UI",sans-serif;display:flex;height:100vh;font-variant-numeric:tabular-nums}
+aside{width:232px;background:var(--sb);border-right:1px solid #1B2030;padding:12px;display:flex;flex-direction:column}
+.logo{display:flex;gap:8px;align-items:center;font-weight:600;padding:4px 8px 16px}.logo i{width:24px;height:24px;border-radius:7px;background:var(--pr)}
+nav a{display:flex;gap:10px;align-items:center;height:36px;padding:0 10px;border-radius:8px;color:var(--mu);position:relative}nav a.on{background:var(--ac);color:var(--acf)}nav a.on:before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:2px;background:var(--pr);border-radius:2px}
+nav a b{width:14px;height:14px;border:1.5px solid currentColor;border-radius:4px;opacity:.8}
+.st{margin-top:auto;font-size:12px;color:var(--mu);display:flex;gap:8px;align-items:center;padding:8px}.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;box-shadow:0 0 0 3px rgba(52,211,153,.18)}
+.dot.s{width:7px;height:7px;box-shadow:none}
+main{flex:1;padding:12px 16px;display:flex;flex-direction:column;min-width:0}
+.tb{display:flex;align-items:center;gap:12px;margin-bottom:12px}.tb h1{font-size:20px;line-height:28px;margin:0;font-weight:600;letter-spacing:-.01em}
+.sum{color:var(--mu);display:flex;gap:12px;align-items:center}.sp{flex:1}
+.in{height:36px;border:1px solid var(--bd2);border-radius:8px;background:var(--card);padding:0 12px;display:flex;align-items:center;color:var(--fa);min-width:200px}
+.seg{background:var(--raised);border-radius:8px;padding:2px;display:flex}.seg span{padding:5px 11px;border-radius:6px;color:var(--mu)}.seg .a{background:var(--card);border:1px solid var(--bd2);color:var(--fg);padding:4px 10px}
+.body{flex:1;display:grid;grid-template-columns:1fr 340px;gap:12px;min-height:0}
+.wall{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:8px;min-height:0}
+.t{position:relative;border-radius:10px;border:1px solid var(--bd);overflow:hidden;background:#000}
+.t .v{position:absolute;inset:0}
+.t .h{position:absolute;top:0;left:0;right:0;padding:8px 10px;display:flex;justify-content:space-between;background:linear-gradient(#000a,transparent);font-weight:600;font-size:12.5px;z-index:2}
+.t .h em{font:500 11px ui-monospace,Consolas,monospace;color:#ffffffb3;font-style:normal}
+.t .f{position:absolute;bottom:0;left:0;right:0;padding:6px 10px;font-size:11px;color:#ffffffb3;background:linear-gradient(transparent,#000a);z-index:2}
+.ns{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;color:var(--fa);gap:4px;background:repeating-linear-gradient(135deg,#0B0D12 0 10px,#0e1117 10px 20px)}
+.box{position:absolute;border:2px solid;border-radius:3px;box-shadow:0 0 0 1px #0008}.box b{position:absolute;top:-19px;left:-2px;font-size:10.5px;padding:0 6px;color:#0B0D12;border-radius:4px 4px 4px 0;line-height:17px}
+.wr{border-color:#FBBF2499}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px}.card h3{margin:0 0 8px;font-size:14px}
+.rail{display:flex;flex-direction:column;gap:12px;min-height:0}
+.step{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--bd)}
+.chip{display:inline-flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:99px;font-size:12px;border:1px solid}
+.ok{color:var(--ok);background:rgba(52,211,153,.12);border-color:rgba(52,211,153,.3)}.nu{color:var(--mu);background:var(--raised);border-color:var(--bd2)}
+.mu{color:var(--mu)}.m{font:500 11px ui-monospace,Consolas,monospace;color:var(--fa)}
+.cls{font-weight:600;color:#0B0D12;padding:0 7px;border-radius:5px;font-size:11px}
+.row{display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--bd)}
+</style></head><body>
+<aside><div class="logo"><i></i>Vision Console</div>
+<nav><a class="on"><b></b>Live wall</a><a><b></b>Recognitions</a><a><b></b>People</a><a><b></b>Pipelines</a><a><b></b>Sources</a><a><b></b>Health</a></nav>
+<div class="st"><span class="dot"></span>Realtime: Live</div></aside>
+<main>
+<div class="tb"><h1>Live wall</h1><div class="sum"><span><span class="dot s"></span> 19 online</span><span style="color:var(--warn)">2 degraded</span><span>21 cameras</span></div><div class="sp"></div><div class="in">Search camera / tag</div><div class="in" style="min-width:120px">All states</div><div class="seg"><span>1</span><span>2x2</span><span class="a">3x3</span><span>4x4</span></div></div>
+<div class="body">
+<div class="wall">
+<div class="t"><div class="v" style="background:linear-gradient(160deg,#2b3a4d,#10151d)"></div><div class="box" style="left:22%;top:38%;width:30%;height:40%;border-color:#A3E635"><b style="background:#A3E635">car 94%</b></div><div class="h"><span><span class="dot s"></span> Camera 001</span><em>cam-001</em></div><div class="f">updated 1s ago</div></div>
+<div class="t"><div class="v" style="background:linear-gradient(200deg,#3a3250,#12141c)"></div><div class="box" style="left:40%;top:25%;width:18%;height:55%;border-color:#38BDF8"><b style="background:#38BDF8">person 88%</b></div><div class="h"><span><span class="dot s"></span> Camera 002</span><em>cam-002</em></div><div class="f">updated 1s ago</div></div>
+<div class="t wr"><div class="v" style="background:linear-gradient(120deg,#2d3b2f,#10151d);filter:grayscale(.4)"></div><div class="h"><span><span class="dot s" style="background:var(--warn)"></span> Camera 019</span><em>cam-019</em></div><div class="f" style="color:var(--warn)">degraded - updated 12s ago</div></div>
+<div class="t"><div class="ns"><div style="color:var(--mu);font-weight:600">No signal</div><div style="font-size:11px">Last frame 3m ago</div></div><div class="h"><span><span class="dot s" style="background:var(--err)"></span> Camera 004</span><em>cam-004</em></div></div>
+<div class="t"><div class="v" style="background:linear-gradient(180deg,#cfd9e6,#8796aa)"></div><div class="box" style="left:12%;top:25%;width:70%;height:60%;border-color:#A3E635"><b style="background:#A3E635">car 94%</b></div><div class="box" style="left:48%;top:70%;width:22%;height:10%;border-color:#FACC15;border-style:dashed"><b style="background:#FACC15;top:auto;bottom:-19px;border-radius:0 4px 4px 4px">PL8REC</b></div><div class="h"><span><span class="dot s"></span> Camera 005</span><em>cam-005</em></div><div class="f">updated 1s ago</div></div>
+<div class="t"><div class="ns"><div style="color:var(--pr)">Connecting...</div></div><div class="h"><span><span class="dot s"></span> Camera 006</span><em>cam-006</em></div></div>
+<div class="t"><div class="v" style="background:linear-gradient(160deg,#42352b,#10151d)"></div><div class="h"><span><span class="dot s"></span> Camera 007</span><em>cam-007</em></div><div class="f">updated 2s ago</div></div>
+<div class="t"><div class="v" style="background:linear-gradient(160deg,#243a3a,#10151d)"></div><div class="box" style="left:30%;top:50%;width:40%;height:30%;border-color:#FB923C"><b style="background:#FB923C">truck 91%</b></div><div class="h"><span><span class="dot s"></span> Camera 008</span><em>cam-008</em></div><div class="f">updated 1s ago</div></div>
+<div class="t"><div class="v" style="background:linear-gradient(160deg,#2b2f4d,#10151d)"></div><div class="h"><span><span class="dot s"></span> Camera 009</span><em>cam-009</em></div><div class="f">updated 1s ago</div></div>
+</div>
+<div class="rail">
+<div class="card"><h3>Camera 005 <span class="m">cam-005</span> <span class="chip ok" style="float:right">online</span></h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><div class="mu" style="font-size:12px">FPS</div><div style="font-size:20px;font-weight:600">3.0 <span class="m">/ 3</span></div></div><div><div class="mu" style="font-size:12px">Uptime 1h</div><div style="font-size:20px;font-weight:600">96.3%</div></div></div></div>
+<div class="card"><h3>Pipeline watch <span class="mu" style="font-weight:400;font-size:12px">Vehicles plates + faces v1</span></h3>
+<div class="step" style="border:0"><span class="dot" style="margin-top:6px"></span><div style="flex:1"><b>detect_objects</b> <span class="chip nu">inline</span><div class="m">s1 - 38 ms - 12 runs - 2s ago</div></div></div>
+<div class="step"><span class="dot" style="margin-top:6px"></span><div style="flex:1"><b>read_plate</b> <span class="chip nu">inline</span><div class="m">s2 - found car - 41 ms - 2s ago</div></div></div>
+<div class="step" style="opacity:.6"><span class="dot" style="margin-top:6px;background:#8B93A4;box-shadow:none"></span><div style="flex:1"><b>identify_faces</b> <span class="chip nu">skipped</span><div class="m">s3 - found person = false</div></div></div></div>
+<div class="card" style="flex:1"><h3>Live detections</h3>
+<div class="row"><span class="m">14:54:55</span><span class="cls" style="background:#A3E635">car</span><span style="flex:1">car</span><span>94%</span></div>
+<div class="row"><span class="m">14:54:55</span><span class="cls" style="background:#FACC15">plate</span><span style="flex:1;font-family:ui-monospace,Consolas,monospace;font-weight:600">PL8REC</span><span>100%</span></div></div>
+</div></div></main></body></html>

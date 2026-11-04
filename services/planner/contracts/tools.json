@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "tools": [
+    {
+      "name": "detect_objects",
+      "description": "Detect COCO objects (person, car, truck, bus, motorcycle, bicycle, ...). Cheap. Usually the first step.",
+      "url": "http://detector:8101/detect_objects",
+      "cost": "low",
+      "output": "objects",
+      "params": { "classes": "comma-separated COCO class filter (optional)", "min_confidence": "0..1, default 0.4" }
+    },
+    {
+      "name": "read_plate",
+      "description": "Find and read vehicle license plates. Run only when a vehicle was found.",
+      "url": "http://lpr:8102/read_plate",
+      "cost": "medium",
+      "output": "plates",
+      "emits_recognition": "plate",
+      "params": {}
+    },
+    {
+      "name": "read_text",
+      "description": "Read general text (signs, labels, containers). Slow on CPU; prefer conditional use.",
+      "url": "http://ocr:8103/read_text",
+      "cost": "high",
+      "output": "texts",
+      "params": {}
+    },
+    {
+      "name": "detect_faces",
+      "description": "Detect faces (no identity). Run only when a person was found.",
+      "url": "http://face:8104/detect_faces",
+      "cost": "low",
+      "output": "faces",
+      "params": {}
+    },
+    {
+      "name": "identify_faces",
+      "description": "Detect faces and match them against enrolled persons. Run only when a person was found.",
+      "url": "http://face:8104/identify_faces",
+      "cost": "medium",
+      "output": "faces",
+      "emits_recognition": "face",
+      "params": { "threshold": "cosine similarity threshold, default 0.363" }
+    }
+  ]
+}

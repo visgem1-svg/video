@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vision-pipeline.local/plan.schema.json",
+  "title": "Pipeline plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["plan_id", "version", "name", "query", "camera_ids", "steps", "status", "created_at"],
+  "properties": {
+    "plan_id": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "name": { "type": "string", "maxLength": 80 },
+    "query": { "type": "string", "maxLength": 1000 },
+    "camera_ids": { "type": "array", "items": { "type": "string" } },
+    "status": { "enum": ["draft", "active", "disabled"] },
+    "created_at": { "type": "integer" },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "tool", "mode"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^s[0-9]+$" },
+          "tool": { "enum": ["detect_objects", "read_plate", "read_text", "detect_faces", "identify_faces"] },
+          "mode": { "enum": ["inline", "queue"] },
+          "params": { "type": "object", "additionalProperties": { "type": ["string", "number"] } },
+          "when": {
+            "oneOf": [
+              { "type": "object", "additionalProperties": false, "required": ["type"],
+                "properties": { "type": { "const": "always" } } },
+              { "type": "object", "additionalProperties": false, "required": ["type", "class"],
+                "properties": { "type": { "const": "found" }, "class": { "type": "string" },
+                                "min_confidence": { "type": "number", "minimum": 0, "maximum": 1 } } },
+              { "type": "object", "additionalProperties": false, "required": ["type", "class", "gt"],
+                "properties": { "type": { "const": "count" }, "class": { "type": "string" },
+                                "gt": { "type": "integer", "minimum": 0 } } },
+              { "type": "object", "additionalProperties": false, "required": ["type", "step"],
+                "properties": { "type": { "const": "failed" }, "step": { "type": "string", "pattern": "^s[0-9]+$" } } }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
