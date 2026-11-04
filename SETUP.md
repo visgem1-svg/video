@@ -39,7 +39,7 @@ Prometheus, Grafana, Redpanda Console, nginx, ffmpeg inside the extractor and si
 Python 3.13 and .NET 10 base images, ONNX Runtime, OpenCV, FastAPI, fast-alpr, RapidOCR.
 
 AI models:
-* `models/*.onnx` are in this repo (YOLOX object detection, YuNet face detection, SFace face recognition).
+* `models/*.onnx`: small ones are in this repo; three large ones must be downloaded (section 3b): YOLOX-S, SFace, YOLOX-tiny.
 * LPR (license plate) models download once into the `engines-cache` volume on the first start of the `lpr` container (needs internet once).
 * The LLM model is pulled by Ollama (section 3).
 
@@ -78,6 +78,19 @@ ollama list                  # must show qwen2.5:3b
 ```
 The planner container reaches it at `http://host.docker.internal:11434` (set in docker-compose).
 Without Ollama everything else works, but "build a pipeline from a text query" returns an error.
+
+### 3b. Download the large models (not stored in this repo)
+Three model files are too large for the GitHub upload and are NOT in the repo. Download them into `models/` **before** `docker compose up`
+(the engines mount `models/` read-only). The small ones (`yolox_nano.onnx`, `object_detection_yolox_2022nov_int8bq.onnx`,
+`face_detection_yunet_2023mar.onnx`) are already in the repo.
+
+| File (put in `models/`) | Size | Source |
+|---|---|---|
+| `object_detection_yolox_2022nov.onnx` (YOLOX-S) | 36 MB | OpenCV Model Zoo: https://github.com/opencv/opencv_zoo/tree/main/models/object_detection_yolox (or https://huggingface.co/opencv/object_detection_yolox) |
+| `face_recognition_sface_2021dec.onnx` (SFace) | 39 MB | OpenCV Model Zoo: https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface (or https://huggingface.co/opencv/face_recognition_sface) |
+| `yolox_tiny.onnx` | 20 MB | YOLOX releases: https://github.com/Megvii-BaseDetection/YOLOX/releases (ONNX assets) |
+
+Check afterwards: `ls -la models/` shows all six `.onnx` files.
 
 ---------------------------------------------------------------------------------------------------
 

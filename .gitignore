@@ -28,3 +28,8 @@ downloads/
 Thumbs.db
 .vs/
 .idea/
+
+# large models: not in the repo, download per SETUP.md section 3b
+models/yolox_tiny.onnx
+models/face_recognition_sface_2021dec.onnx
+models/object_detection_yolox_2022nov.onnx
