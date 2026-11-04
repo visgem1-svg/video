@@ -33,3 +33,5 @@ Thumbs.db
 models/yolox_tiny.onnx
 models/face_recognition_sface_2021dec.onnx
 models/object_detection_yolox_2022nov.onnx
+test-images/
+qa/screenshots/
