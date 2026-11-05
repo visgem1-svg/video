@@ -607,6 +607,11 @@ per bug → re-run the tests → update contracts/backlog → tell the user the 
 - **URLs:** client http://localhost:5173 · gateway http://localhost:8000 · Grafana http://localhost:3000 (anonymous viewer) ·
   Prometheus http://localhost:9090 · Redpanda Console http://localhost:8080 · SeaweedFS browser http://localhost:8888 ·
   MediaMTX API http://localhost:9997/v3/paths/list · Kafka from the host `localhost:19092`.
+- **Models that are NOT in the git repo:** three large ONNX files are missing from `models/` after a clone (GitHub uploads kept failing on this network).
+  Download them into `models/` **before** `docker compose up` (the engines mount `models/` read-only; the detector and face engines load their models from there):
+  `object_detection_yolox_2022nov.onnx` (YOLOX-S, 36 MB), `face_recognition_sface_2021dec.onnx` (SFace, 39 MB), `yolox_tiny.onnx` (20 MB).
+  Sources and the check command are in `SETUP.md` section 3b. The three small models (`yolox_nano`, `object_detection_yolox_2022nov_int8bq`, `face_detection_yunet_2023mar`) are in the repo.
+  `test-images/` and `qa/screenshots/` are also not in git (local test data only).
 - **Questions to ask the user before building for real:** number and type of cameras (codec, resolution, fps, GOP, substream available?),
   GPU availability, retention requirements (snapshots, detections), single site or several, authentication needs, where credentials live.
 
